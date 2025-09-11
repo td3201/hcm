@@ -11,13 +11,13 @@ import { Trash2, Plus, Heart, Zap, User, BarChart3, Download, ArrowRight, ArrowL
 import { Badge } from "@/components/ui/badge"
 import {
   ScatterChart,
-  Scatter,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
   ReferenceArea,
+  Scatter,
 } from "recharts"
 import { jsPDF } from "jspdf"
 
@@ -38,20 +38,103 @@ interface Person {
 }
 
 const ZONES = {
-  "No Go Zone": { x: [0, 5], y: [0, 10], color: "bg-red-100 text-red-800", chartColor: "#fecaca" },
-  "Danger Zone": { x: [5, 10], y: [5, 10], color: "bg-orange-100 text-orange-800", chartColor: "#fed7aa" },
-  "Fun Zone": { x: [5, 8], y: [0, 8], color: "bg-yellow-100 text-yellow-800", chartColor: "#fef3c7" },
-  "Date Zone": { x: [8, 10], y: [5, 10], color: "bg-blue-100 text-blue-800", chartColor: "#dbeafe" },
-  "Wife Zone": { x: [8, 10], y: [1, 5], color: "bg-green-100 text-green-800", chartColor: "#dcfce7" },
-  "XY Mixup": { x: [8, 10], y: [0, 1], color: "bg-purple-100 text-purple-800", chartColor: "#e9d5ff" },
+  "No Go Zone": {
+    x: [0, 5],
+    y: [0, 10],
+    color: "bg-red-100 text-red-800",
+    chartColor: "#fecaca",
+    shape: "rectangle",
+    description:
+      "Avoid investing time here. These individuals may not meet your standards for a meaningful relationship. Focus your energy elsewhere.",
+    pattern: <path d="M0,4 L4,0" stroke="#dc2626" strokeWidth="0.5" opacity="0.6" />,
+  },
+  "Danger Zone": {
+    x: [5, 10],
+    y: [5, 10],
+    color: "bg-orange-100 text-orange-800",
+    chartColor: "#fed7aa",
+    shape: "triangle",
+    description:
+      "Proceed with caution. High attraction but potentially unstable. Keep boundaries clear and avoid sharing sensitive information early.",
+    pattern: <circle cx="2" cy="2" r="0.5" fill="#ea580c" opacity="0.6" />,
+  },
+  "Fun Zone": {
+    x: [5, 8],
+    y: [0, 8],
+    color: "bg-yellow-100 text-yellow-800",
+    chartColor: "#fef3c7",
+    shape: "trapezoid",
+    description:
+      "Great for exciting experiences but may lack long-term stability. Enjoy the connection while being mindful of emotional boundaries.",
+    pattern: (
+      <>
+        <path d="M0,4 L4,0" stroke="#ca8a04" strokeWidth="0.3" opacity="0.6" />
+        <path d="M0,0 L4,4" stroke="#ca8a04" strokeWidth="0.3" opacity="0.6" />
+      </>
+    ),
+  },
+  "Date Zone": {
+    x: [8, 10],
+    y: [5, 10],
+    color: "bg-blue-100 text-blue-800",
+    chartColor: "#dbeafe",
+    shape: "trapezoid",
+    description:
+      "Good for casual dating and exploring compatibility. Monitor if they develop into more stable zones before committing long-term.",
+    pattern: <rect x="1" y="1" width="2" height="2" fill="none" stroke="#2563eb" strokeWidth="0.3" opacity="0.6" />,
+  },
+  "Wife Zone": {
+    x: [8, 10],
+    y: [1, 5],
+    color: "bg-green-100 text-green-800",
+    chartColor: "#dcfce7",
+    shape: "rectangle",
+    description:
+      "Ideal for long-term relationships. High compatibility with good stability. Consider introducing to family and friends when appropriate.",
+    pattern: <path d="M2,0 L4,2 L2,4 L0,2 Z" fill="#16a34a" opacity="0.6" />,
+  },
+  "Chromosome Mismatch": {
+    x: [8, 10],
+    y: [0, 1],
+    color: "bg-purple-100 text-purple-800",
+    chartColor: "#e9d5ff",
+    shape: "rectangle",
+    description:
+      "Seems too good to be true - verify authenticity. High attraction with low complexity may indicate incomplete information or misrepresentation.",
+    pattern: (
+      <>
+        <path d="M0,0 L4,4" stroke="#9333ea" strokeWidth="0.4" opacity="0.6" />
+        <path d="M0,4 L4,0" stroke="#9333ea" strokeWidth="0.4" opacity="0.6" />
+      </>
+    ),
+  },
 }
 
 function getZone(x: number, y: number): string {
-  if (x >= 8 && x <= 10 && y >= 0 && y <= 1) return "XY Mixup"
+  // Process zones in priority order to handle overlapping boundaries
+
+  // Chromosome Mismatch: Rectangle X=8-10, Y=0-1
+  if (x >= 8 && x <= 10 && y >= 0 && y <= 1) return "Chromosome Mismatch"
+
+  // Wife Zone: Rectangle X=8-10, Y=1-5
   if (x >= 8 && x <= 10 && y >= 1 && y <= 5) return "Wife Zone"
-  if (x >= 8 && x <= 10 && y >= 5 && y <= 10) return "Date Zone"
-  if (x >= 5 && x <= 8 && y >= 0 && y <= 8) return "Fun Zone"
-  if (x >= 5 && x <= 10 && y >= 5 && y <= 10) return "Danger Zone"
+
+  // Date Zone: Complex shape in upper right
+  if (x >= 8 && x <= 10 && y >= 5 && y <= 10) {
+    if (y <= x) return "Date Zone" // Below diagonal line y=x
+  }
+
+  // Danger Zone: Triangle - above diagonal line y=x in the 5-10, 5-10 area
+  if (x >= 5 && x <= 10 && y >= 5 && y <= 10) {
+    if (y >= x) return "Danger Zone" // Above diagonal line y=x
+  }
+
+  // Fun Zone: Area between X=5-8, Y=0-8, excluding Danger Zone
+  if (x >= 5 && x <= 8 && y >= 0 && y <= 8) {
+    if (y < 5 || (y >= 5 && y < x)) return "Fun Zone" // Below Danger Zone
+  }
+
+  // No Go Zone: Rectangle X=0-5, Y=0-10 (default for remaining area)
   if (x >= 0 && x <= 5 && y >= 0 && y <= 10) return "No Go Zone"
 
   return "Unknown Zone"
@@ -320,7 +403,7 @@ const HotCriteriaPage = ({
                     onValueChange={([value]) => onUpdateWeight(criterion.id, value)}
                     max={100}
                     step={1}
-                    className="flex-1"
+                    className="flex-1 [&_.slider-track]:bg-gray-400 [&_.slider-range]:bg-primary"
                   />
                   <span className="text-sm text-muted-foreground w-12">{(criterion.weight * 100).toFixed(0)}%</span>
                 </div>
@@ -333,7 +416,11 @@ const HotCriteriaPage = ({
         </div>
 
         {hotCriteria.length > 0 && (
-          <Button variant="outline" onClick={onNormalizeWeights} className="w-full bg-transparent">
+          <Button
+            variant="default"
+            onClick={onNormalizeWeights}
+            className="w-full bg-gray-800 hover:bg-gray-700 text-white"
+          >
             Normalize Hot Weights to 100%
           </Button>
         )}
@@ -345,7 +432,7 @@ const HotCriteriaPage = ({
         <ArrowLeft className="h-4 w-4 mr-2" />
         Back to Templates
       </Button>
-      <Button onClick={onNext} disabled={hotCriteria.length === 0}>
+      <Button onClick={onNext} disabled={hotCriteria.length === 0 || Math.abs(hotWeightSum - 1) > 0.01}>
         Continue to Crazy Criteria
         <ArrowRight className="h-4 w-4 ml-2" />
       </Button>
@@ -421,7 +508,7 @@ const CrazyCriteriaPage = ({
                     onValueChange={([value]) => onUpdateWeight(criterion.id, value)}
                     max={100}
                     step={1}
-                    className="flex-1"
+                    className="flex-1 [&_.slider-track]:bg-gray-400 [&_.slider-range]:bg-primary"
                   />
                   <span className="text-sm text-muted-foreground w-12">{(criterion.weight * 100).toFixed(0)}%</span>
                 </div>
@@ -434,7 +521,11 @@ const CrazyCriteriaPage = ({
         </div>
 
         {crazyCriteria.length > 0 && (
-          <Button variant="outline" onClick={onNormalizeWeights} className="w-full bg-transparent">
+          <Button
+            variant="default"
+            onClick={onNormalizeWeights}
+            className="w-full bg-gray-800 hover:bg-gray-700 text-white"
+          >
             Normalize Crazy Weights to 100%
           </Button>
         )}
@@ -446,7 +537,7 @@ const CrazyCriteriaPage = ({
         <ArrowLeft className="h-4 w-4 mr-2" />
         Back to Hot Criteria
       </Button>
-      <Button onClick={onNext} disabled={crazyCriteria.length === 0}>
+      <Button onClick={onNext} disabled={crazyCriteria.length === 0 || Math.abs(crazyWeightSum - 1) > 0.01}>
         Start Scoring People
         <ArrowRight className="h-4 w-4 ml-2" />
       </Button>
@@ -463,6 +554,7 @@ const PeoplePage = ({
   onAddPerson,
   onRemovePerson,
   onUpdatePersonScore,
+  onUpdateCriterionWeight,
   onBack,
   onNext,
 }: {
@@ -474,6 +566,7 @@ const PeoplePage = ({
   onAddPerson: () => void
   onRemovePerson: (id: string) => void
   onUpdatePersonScore: (personId: string, criterionId: string, score: number) => void
+  onUpdateCriterionWeight: (criterionId: string, weight: number) => void
   onBack: () => void
   onNext: () => void
 }) => (
@@ -505,6 +598,7 @@ const PeoplePage = ({
                 value={newPersonName}
                 onChange={onPersonNameChange}
                 onKeyPress={onKeyPress}
+                className="border-2 border-gray-300 focus:border-primary"
               />
               <Button onClick={onAddPerson}>
                 <Plus className="h-4 w-4 mr-2" />
@@ -525,17 +619,11 @@ const PeoplePage = ({
                       {person.name}
                     </span>
                     <div className="flex items-center gap-2">
-                      <Badge className={ZONES[person.zone as keyof typeof ZONES]?.color || "bg-gray-100 text-gray-800"}>
-                        {person.zone}
-                      </Badge>
                       <Button variant="ghost" size="sm" onClick={() => onRemovePerson(person.id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </CardTitle>
-                  <CardDescription>
-                    Hot Score: {person.hotScore.toFixed(1)} | Crazy Score: {person.crazyScore.toFixed(1)}
-                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="grid md:grid-cols-2 gap-6">
@@ -554,15 +642,16 @@ const PeoplePage = ({
                                 Weight: {(criterion.weight * 100).toFixed(0)}%
                               </span>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Slider
-                                value={[person.scores[criterion.id] || 0]}
-                                onValueChange={([value]) => onUpdatePersonScore(person.id, criterion.id, value)}
-                                max={10}
-                                step={0.1}
-                                className="flex-1"
-                              />
-                              <span className="text-sm w-8">{(person.scores[criterion.id] || 0).toFixed(1)}</span>
+                            <Slider
+                              value={[person.scores[criterion.id] || 0.1]}
+                              onValueChange={([value]) => onUpdatePersonScore(person.id, criterion.id, value)}
+                              min={0.1}
+                              max={10}
+                              step={0.1}
+                              className="[&_.slider-track]:bg-gray-400 [&_.slider-range]:bg-primary"
+                            />
+                            <div className="text-xs text-muted-foreground text-center">
+                              Score: {(person.scores[criterion.id] || 0.1).toFixed(1)}
                             </div>
                           </div>
                         ))}
@@ -583,15 +672,16 @@ const PeoplePage = ({
                                 Weight: {(criterion.weight * 100).toFixed(0)}%
                               </span>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Slider
-                                value={[person.scores[criterion.id] || 0]}
-                                onValueChange={([value]) => onUpdatePersonScore(person.id, criterion.id, value)}
-                                max={10}
-                                step={0.1}
-                                className="flex-1"
-                              />
-                              <span className="text-sm w-8">{(person.scores[criterion.id] || 0).toFixed(1)}</span>
+                            <Slider
+                              value={[person.scores[criterion.id] || 0.1]}
+                              onValueChange={([value]) => onUpdatePersonScore(person.id, criterion.id, value)}
+                              min={0.1}
+                              max={10}
+                              step={0.1}
+                              className="[&_.slider-track]:bg-gray-400 [&_.slider-range]:bg-primary"
+                            />
+                            <div className="text-xs text-muted-foreground text-center">
+                              Score: {(person.scores[criterion.id] || 0.1).toFixed(1)}
                             </div>
                           </div>
                         ))}
@@ -603,18 +693,16 @@ const PeoplePage = ({
           </div>
         )}
 
-        {people.length > 0 && (
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <Button onClick={onNext} size="lg">
-                  <BarChart3 className="h-4 w-4 mr-2" />
-                  View Results & Chart
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <div className="flex justify-between">
+          <Button variant="outline" onClick={onBack}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Criteria
+          </Button>
+          <Button onClick={onNext} disabled={people.length === 0}>
+            View Results
+            <ArrowRight className="h-4 w-4 ml-2" />
+          </Button>
+        </div>
       </>
     )}
   </div>
@@ -654,10 +742,16 @@ const ResultsPage = ({
                 <h2 className="text-2xl font-bold">Compatibility Results</h2>
                 <p className="text-muted-foreground">Analysis of {people.length} scored individuals</p>
               </div>
-              <Button onClick={exportToPDF} variant="outline" className="flex items-center gap-2 bg-transparent">
-                <Download className="h-4 w-4" />
-                Export PDF Report
-              </Button>
+              <div className="flex items-center gap-3">
+                <Button onClick={onBack} variant="outline" className="flex items-center gap-2 bg-transparent">
+                  <ArrowLeft className="h-4 w-4" />
+                  Back to Scoring
+                </Button>
+                <Button onClick={exportToPDF} variant="outline" className="flex items-center gap-2 bg-transparent">
+                  <Download className="h-4 w-4" />
+                  Export PDF Report
+                </Button>
+              </div>
             </div>
 
             <Card>
@@ -686,15 +780,7 @@ const ResultsPage = ({
                   onClick={() => setIsChartExpanded(!isChartExpanded)}
                 >
                   <ResponsiveContainer width="100%" height="100%" maxHeight={isChartExpanded ? 384 : 192}>
-                    <ScatterChart
-                      data={people}
-                      margin={{
-                        top: 20,
-                        right: 20,
-                        bottom: isChartExpanded ? 60 : 40,
-                        left: isChartExpanded ? 60 : 40,
-                      }}
-                    >
+                    <ScatterChart data={people} margin={{ top: 20, right: 30, bottom: 80, left: 20 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                       <XAxis
                         type="number"
@@ -717,11 +803,11 @@ const ResultsPage = ({
                           if (active && payload && payload.length) {
                             const data = payload[0].payload
                             return (
-                              <div className="bg-white p-3 border rounded-lg shadow-lg">
+                              <div className="bg-white p-3 border rounded shadow-lg">
                                 <p className="font-semibold">{data.name}</p>
-                                <p className="text-sm">Hot: {data.hotScore.toFixed(1)}</p>
-                                <p className="text-sm">Crazy: {data.crazyScore.toFixed(1)}</p>
-                                <p className="text-sm font-medium text-muted-foreground">{data.zone}</p>
+                                <p>Hot Score: {data.hotScore.toFixed(1)}</p>
+                                <p>Crazy Score: {data.crazyScore.toFixed(1)}</p>
+                                <p>Zone: {data.zone}</p>
                               </div>
                             )
                           }
@@ -729,56 +815,112 @@ const ResultsPage = ({
                         }}
                       />
 
+                      <defs>
+                        <pattern id="noGoPattern" patternUnits="userSpaceOnUse" width="8" height="8">
+                          <rect width="8" height="8" fill={ZONES["No Go Zone"].chartColor} fillOpacity={0.3} />
+                          <path d="M0,8 L8,0" stroke="#dc2626" strokeWidth="1" opacity="0.5" />
+                        </pattern>
+
+                        <pattern id="dangerPattern" patternUnits="userSpaceOnUse" width="6" height="6">
+                          <rect width="6" height="6" fill={ZONES["Danger Zone"].chartColor} fillOpacity={0.3} />
+                          <circle cx="3" cy="3" r="1" fill="#ea580c" opacity="0.6" />
+                        </pattern>
+
+                        <pattern id="funPattern" patternUnits="userSpaceOnUse" width="10" height="10">
+                          <rect width="10" height="10" fill={ZONES["Fun Zone"].chartColor} fillOpacity={0.3} />
+                          <path d="M0,0 L10,10 M0,10 L10,0" stroke="#d97706" strokeWidth="1" opacity="0.4" />
+                        </pattern>
+
+                        <pattern id="datePattern" patternUnits="userSpaceOnUse" width="8" height="8">
+                          <rect width="8" height="8" fill={ZONES["Date Zone"].chartColor} fillOpacity={0.3} />
+                          <rect x="2" y="2" width="4" height="4" fill="#2563eb" opacity="0.3" />
+                        </pattern>
+
+                        <pattern id="wifePattern" patternUnits="userSpaceOnUse" width="12" height="12">
+                          <rect width="12" height="12" fill={ZONES["Wife Zone"].chartColor} fillOpacity={0.3} />
+                          <path d="M0,6 L6,0 L12,6 L6,12 Z" fill="#16a34a" opacity="0.4" />
+                        </pattern>
+
+                        <pattern id="chromosomePattern" patternUnits="userSpaceOnUse" width="8" height="8">
+                          <rect width="8" height="8" fill={ZONES["Chromosome Mismatch"].chartColor} fillOpacity={0.3} />
+                          <path d="M2,2 L6,6 M6,2 L2,6" stroke="#9333ea" strokeWidth="2" opacity="0.6" />
+                        </pattern>
+
+                        <clipPath id="dangerZoneClip">
+                          <polygon points="5,5 5,10 10,10" />
+                        </clipPath>
+
+                        <clipPath id="funZoneClip">
+                          <polygon points="5,0 8,0 8,8 5,5" />
+                        </clipPath>
+
+                        <clipPath id="dateZoneClip">
+                          <polygon points="8,5 10,5 10,10 8,10" />
+                        </clipPath>
+                      </defs>
+
                       <ReferenceArea
                         x1={0}
                         x2={5}
                         y1={0}
                         y2={10}
-                        fill={ZONES["No Go Zone"].chartColor}
-                        fillOpacity={0.3}
+                        fill="url(#noGoPattern)"
+                        stroke="#dc2626"
+                        strokeWidth={2}
                       />
+
                       <ReferenceArea
                         x1={5}
                         x2={10}
                         y1={5}
                         y2={10}
-                        fill={ZONES["Danger Zone"].chartColor}
-                        fillOpacity={0.3}
+                        fill="url(#dangerPattern)"
+                        clipPath="url(#dangerZoneClip)"
+                        stroke="#ea580c"
+                        strokeWidth={2}
                       />
+
                       <ReferenceArea
                         x1={5}
                         x2={8}
                         y1={0}
                         y2={8}
-                        fill={ZONES["Fun Zone"].chartColor}
-                        fillOpacity={0.3}
+                        fill="url(#funPattern)"
+                        clipPath="url(#funZoneClip)"
+                        stroke="#d97706"
+                        strokeWidth={2}
                       />
+
                       <ReferenceArea
                         x1={8}
                         x2={10}
                         y1={5}
                         y2={10}
-                        fill={ZONES["Date Zone"].chartColor}
-                        fillOpacity={0.3}
+                        fill="url(#datePattern)"
+                        clipPath="url(#dateZoneClip)"
+                        stroke="#2563eb"
+                        strokeWidth={2}
                       />
+
                       <ReferenceArea
                         x1={8}
                         x2={10}
                         y1={1}
                         y2={5}
-                        fill={ZONES["Wife Zone"].chartColor}
-                        fillOpacity={0.3}
+                        fill="url(#wifePattern)"
+                        stroke="#16a34a"
+                        strokeWidth={2}
                       />
                       <ReferenceArea
                         x1={8}
                         x2={10}
                         y1={0}
                         y2={1}
-                        fill={ZONES["XY Mixup"].chartColor}
-                        fillOpacity={0.3}
+                        fill="url(#chromosomePattern)"
+                        stroke="#9333ea"
+                        strokeWidth={2}
                       />
-
-                      <Scatter dataKey="crazyScore" fill="#dc2626" />
+                      <Scatter data={people} fill="#8884d8" />
                     </ScatterChart>
                   </ResponsiveContainer>
                 </div>
@@ -787,141 +929,69 @@ const ResultsPage = ({
                     Click chart or expand button to view larger
                   </p>
                 )}
-              </CardContent>
-            </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Detailed Scores</CardTitle>
-                <CardDescription>Complete breakdown of all scored individuals</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {people.map((person) => (
-                    <div key={person.id} className="flex justify-between items-center p-4 bg-muted rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="font-semibold">{person.name}</div>
-                        <Badge
-                          className={ZONES[person.zone as keyof typeof ZONES]?.color || "bg-gray-100 text-gray-800"}
-                        >
-                          {person.zone}
-                        </Badge>
+                {/* Zone Legend */}
+                <div className="flex flex-wrap justify-center gap-4 mt-4">
+                  {Object.entries(ZONES).map(([zoneName, zone]) => (
+                    <div key={zoneName} className="relative group">
+                      <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+                        <svg width="24" height="24" className="border border-gray-300">
+                          <defs>
+                            <pattern
+                              id={`legend-${zoneName.replace(/\s+/g, "")}`}
+                              patternUnits="userSpaceOnUse"
+                              width="4"
+                              height="4"
+                            >
+                              {zone.pattern}
+                            </pattern>
+                          </defs>
+                          <rect width="24" height="24" fill={zone.chartColor} />
+                          <rect width="24" height="24" fill={`url(#legend-${zoneName.replace(/\s+/g, "")})`} />
+                        </svg>
+                        <span className="text-sm font-medium">{zoneName}</span>
                       </div>
-                      <div className="flex items-center gap-6 text-sm">
-                        <div className="text-center">
-                          <div className="text-muted-foreground">Hot Score</div>
-                          <div className="font-mono text-xs">{person.hotScore.toFixed(1)}</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-muted-foreground">Crazy Score</div>
-                          <div className="font-mono text-xs">{person.crazyScore.toFixed(1)}</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-muted-foreground">Coordinates</div>
-                          <div className="font-mono text-xs">
-                            ({person.hotScore.toFixed(1)}, {person.crazyScore.toFixed(1)})
-                          </div>
-                        </div>
+                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                        {zone.description}
                       </div>
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Zone Legend</CardTitle>
-                <CardDescription>Relationship compatibility guidance for each zone</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3">
-                      <div
-                        className="w-4 h-4 rounded border mt-1"
-                        style={{ backgroundColor: ZONES["No Go Zone"].chartColor }}
-                      />
-                      <div>
-                        <div className="font-medium text-sm">No Go Zone</div>
-                        <div className="text-xs text-muted-foreground">
-                          Avoid investing time here. These individuals may not meet your standards for a meaningful
-                          relationship. Focus your energy elsewhere.
+                {people.length > 0 && (
+                  <div className="mt-8">
+                    <h3 className="text-lg font-semibold mb-4 text-center">Individual Summary</h3>
+                    <div className="grid gap-3">
+                      {people.map((person) => (
+                        <div key={person.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center gap-4">
+                            <span className="font-medium">{person.name}</span>
+                            <span className="text-sm text-gray-600">
+                              Hot: {person.hotScore.toFixed(1)}, Crazy: {person.crazyScore.toFixed(1)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <svg width="16" height="16" className="border border-gray-300">
+                              <defs>
+                                <pattern
+                                  id={`summary-${person.zone.replace(/\s+/g, "")}`}
+                                  patternUnits="userSpaceOnUse"
+                                  width="4"
+                                  height="4"
+                                >
+                                  {ZONES[person.zone]?.pattern}
+                                </pattern>
+                              </defs>
+                              <rect width="16" height="16" fill={ZONES[person.zone]?.chartColor || "#e5e7eb"} />
+                              <rect width="16" height="16" fill={`url(#summary-${person.zone.replace(/\s+/g, "")})`} />
+                            </svg>
+                            <span className="text-sm font-medium">{person.zone}</span>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-3">
-                      <div
-                        className="w-4 h-4 rounded border mt-1"
-                        style={{ backgroundColor: ZONES["Date Zone"].chartColor }}
-                      />
-                      <div>
-                        <div className="font-medium text-sm">Date Zone</div>
-                        <div className="text-xs text-muted-foreground">
-                          Good for casual dating and exploring compatibility. Monitor if they develop into more stable
-                          zones before committing long-term.
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-3">
-                      <div
-                        className="w-4 h-4 rounded border mt-1"
-                        style={{ backgroundColor: ZONES["Danger Zone"].chartColor }}
-                      />
-                      <div>
-                        <div className="font-medium text-sm">Danger Zone</div>
-                        <div className="text-xs text-muted-foreground">
-                          Proceed with caution. High attraction but potentially unstable. Keep boundaries clear and
-                          avoid sharing sensitive information early.
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-3">
-                      <div
-                        className="w-4 h-4 rounded border mt-1"
-                        style={{ backgroundColor: ZONES["Wife Zone"].chartColor }}
-                      />
-                      <div>
-                        <div className="font-medium text-sm">Wife Zone</div>
-                        <div className="text-xs text-muted-foreground">
-                          Ideal for long-term relationships. High compatibility with good stability. Consider
-                          introducing to family and friends when appropriate.
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-3">
-                      <div
-                        className="w-4 h-4 rounded border mt-1"
-                        style={{ backgroundColor: ZONES["Fun Zone"].chartColor }}
-                      />
-                      <div>
-                        <div className="font-medium text-sm">Fun Zone</div>
-                        <div className="text-xs text-muted-foreground">
-                          Great for exciting experiences but may lack long-term stability. Enjoy the connection while
-                          being mindful of emotional boundaries.
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-3">
-                      <div
-                        className="w-4 h-4 rounded border mt-1"
-                        style={{ backgroundColor: ZONES["XY Mixup"].chartColor }}
-                      />
-                      <div>
-                        <div className="font-medium text-sm">XY Mixup</div>
-                        <div className="text-xs text-muted-foreground">
-                          Seems too good to be true - verify authenticity. High attraction with low complexity may
-                          indicate incomplete information or misrepresentation.
-                        </div>
-                      </div>
+                      ))}
                     </div>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -1051,8 +1121,6 @@ export default function RelationshipScorer() {
 
     if (chartElement) {
       try {
-        console.log("[v0] Attempting to capture chart...")
-
         const svgClone = chartElement.cloneNode(true) as SVGElement
 
         const allElements = svgClone.querySelectorAll("*")
@@ -1086,19 +1154,15 @@ export default function RelationshipScorer() {
             ctx?.drawImage(img, 0, 0)
             chartImageData = canvas.toDataURL("image/png")
             URL.revokeObjectURL(url)
-            console.log("[v0] Chart captured successfully")
             resolve(true)
           }
           img.onerror = (error) => {
-            console.log("[v0] Chart capture failed:", error)
             URL.revokeObjectURL(url)
             reject(error)
           }
           img.src = url
         })
-      } catch (error) {
-        console.log("[v0] Chart capture failed:", error)
-      }
+      } catch (error) {}
     }
 
     doc.setFontSize(20)
@@ -1174,19 +1238,7 @@ export default function RelationshipScorer() {
     doc.text("Zone Descriptions", 20, yPosition)
     yPosition += 10
 
-    const zoneDescriptions = {
-      "No Go Zone":
-        "Avoid investing time here. These individuals may not meet your standards for a meaningful relationship.",
-      "Date Zone":
-        "Good for casual dating and exploring compatibility. Monitor development before committing long-term.",
-      "Danger Zone": "Proceed with caution. High attraction but potentially unstable. Keep boundaries clear.",
-      "Wife Zone": "Ideal for long-term relationships. High compatibility with good stability.",
-      "Fun Zone": "Great for exciting experiences but may lack long-term stability.",
-      "XY Mixup":
-        "Seems too good to be true - verify authenticity. May indicate incomplete information or misrepresentation.",
-    }
-
-    Object.entries(zoneDescriptions).forEach(([zone, description]) => {
+    Object.entries(ZONES).forEach(([zone, zoneData]) => {
       if (yPosition > 250) {
         doc.addPage()
         yPosition = 20
@@ -1197,7 +1249,7 @@ export default function RelationshipScorer() {
       yPosition += 5
 
       doc.setFontSize(9)
-      const lines = doc.splitTextToSize(description, 170)
+      const lines = doc.splitTextToSize(zoneData.description, 170)
       doc.text(lines, 25, yPosition)
       yPosition += lines.length * 4 + 5
     })
@@ -1316,6 +1368,12 @@ export default function RelationshipScorer() {
     setCriteria([...hotCriteria, ...crazyCriteria])
   }, [])
 
+  const handleUpdateCriterionWeight = useCallback((criterionId: string, weight: number) => {
+    setCriteria((prev) =>
+      prev.map((c) => (c.id === criterionId ? { ...c, weight: Math.max(0.01, Math.min(1, weight)) } : c)),
+    )
+  }, [])
+
   return (
     <div className="min-h-screen bg-background p-4">
       {currentPage === "intro" && <IntroPage onNext={handleNextToTemplates} />}
@@ -1366,6 +1424,7 @@ export default function RelationshipScorer() {
           onAddPerson={addPerson}
           onRemovePerson={removePerson}
           onUpdatePersonScore={updatePersonScore}
+          onUpdateCriterionWeight={handleUpdateCriterionWeight}
           onBack={handleBackToCrazyCriteria}
           onNext={handleNextToResults}
         />
